@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Compressor</string>
+    <string name="video_from">Video From:</string>
+    <string name="video_to">Video To:</string>
+</resources>
