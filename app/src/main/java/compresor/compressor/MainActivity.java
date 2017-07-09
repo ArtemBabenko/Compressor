@@ -30,32 +30,33 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+import static compresor.compressor.R.id.editTextFrom;
+import static compresor.compressor.R.id.editTextTo;
+
 
 public class MainActivity extends Activity {
     private static final int TYPE_VIDEO = 1;
     private static final int RESULT_CODE_COMPRESS_VIDEO = 3;
-    public static final int READ_EXTERNAL_STORAGE = 0, MULTIPLE_PERMISSIONS = 10;
+    private static final int READ_EXTERNAL_STORAGE = 0, MULTIPLE_PERMISSIONS = 10;
     private static final String TAG = "MainActivity";
-    private TextView editTextFrom;
-    private TextView editTextTo;
+    private TextView textFrom;
+    private TextView textTo;
     private ImageView btnWriteVideo;
     private ProgressBar progressBar;
 
-    String[] permissions = new String[]{
+    private String[] permissions = new String[]{
             Manifest.permission.READ_EXTERNAL_STORAGE,
-            Manifest.permission.CAMERA,};
+            Manifest.permission.CAMERA,
+    };
 
-    File directory;
-    Uri urlForVideo = null;
+    private File directory;
+    private Uri uriForVideo = null;
 
-    public static final String APP_DIR = "Compressor";
-
-    public static final String COMPRESSED_VIDEOS_DIR = "/Compressed Videos/";
-
+    private static final String APP_DIR = "Compressor";
+    private static final String COMPRESSED_VIDEOS_DIR = "/Compressed Videos/";
     public static final String TEMP_DIR = "/Temp/";
 
-
-    public static void try2CreateCompressDir() {
+    private void try2CreateCompressDir() {
         File f = new File(Environment.getExternalStorageDirectory(), File.separator + APP_DIR);
         f.mkdirs();
         f = new File(Environment.getExternalStorageDirectory(), File.separator + APP_DIR + COMPRESSED_VIDEOS_DIR);
@@ -64,15 +65,14 @@ public class MainActivity extends Activity {
         f.mkdirs();
     }
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         createDirectory();
         progressBar = (ProgressBar) findViewById(R.id.progressBar);
-        editTextFrom = (TextView) findViewById(R.id.editTextFrom);
-        editTextTo = (TextView) findViewById(R.id.editTextTo);
+        textFrom = (TextView) findViewById(editTextFrom);
+        textTo = (TextView) findViewById(editTextTo);
         btnWriteVideo = (ImageView) findViewById(R.id.btnWriteVideo);
         btnWriteVideo.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -88,14 +88,20 @@ public class MainActivity extends Activity {
     private void onClickVideo() {
         Uri outputFileUri = FileProvider.getUriForFile(this, this.getApplicationContext().getPackageName() + ".provider", generateFileUri(TYPE_VIDEO));
         System.out.println(outputFileUri);
-        System.out.println(urlForVideo);
-
         Intent cameraIntent = new Intent(android.provider.MediaStore.ACTION_VIDEO_CAPTURE);
-        cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, urlForVideo);
+        cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, outputFileUri);
         cameraIntent.putExtra(Intent.EXTRA_RETURN_RESULT, true);
         cameraIntent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
         startActivityForResult(Intent.createChooser(cameraIntent, "Select an Image"), RESULT_CODE_COMPRESS_VIDEO);
+    }
+
+    private File generateFileUri(int type) {
+        File file = null;
+        if (type == TYPE_VIDEO) {
+            file = new File(directory.getPath() + "/" + "video_" + System.currentTimeMillis() + ".mp4");
+        }
+        uriForVideo = Uri.fromFile(file);
+        return file;
     }
 
     private boolean checkPermissions() {
@@ -120,28 +126,14 @@ public class MainActivity extends Activity {
         switch (requestCode) {
             case READ_EXTERNAL_STORAGE:
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED)
-                    compress();
-                    return;
+                    Compress();
+                return;
             case MULTIPLE_PERMISSIONS: {
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     onClickVideo();
                 }
             }
         }
-    }
-
-
-    private File generateFileUri(int type) {
-        File file = null;
-        switch (type) {
-            case TYPE_VIDEO:
-                file = new File(directory.getPath() + "/" + "video_"
-                        + System.currentTimeMillis() + ".mp4");
-                break;
-        }
-        Log.d(TAG, "fileName = " + file);
-        urlForVideo = Uri.fromFile(file);
-        return file;
     }
 
     private void createDirectory() {
@@ -157,39 +149,27 @@ public class MainActivity extends Activity {
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
     protected void onActivityResult(int reqCode, int resCode, Intent data) {
         if (reqCode == RESULT_CODE_COMPRESS_VIDEO) {
-            if (resCode == RESULT_OK) {
-                if (checkPermissions()) {
-                    editTextFrom.setText(urlForVideo.getPath());
-                    compress();
-                }
+            if (resCode == RESULT_OK && checkPermissions() == true) {
+                textFrom.setText(uriForVideo.getPath());
+                Compress();
             } else if (resCode == RESULT_CANCELED) {
                 Log.d(TAG, "Canceled");
             }
         }
     }
 
-    @Override
-    public void onBackPressed() {
-        super.onBackPressed();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-    }
-
-    public void compress() {
+    private void Compress() {
         try2CreateCompressDir();
         String outPath = Environment.getExternalStorageDirectory()
                 + File.separator
                 + APP_DIR
                 + COMPRESSED_VIDEOS_DIR
                 + "VIDEO_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date()) + ".mp4";
-        editTextTo.setText(outPath);
-        new VideoCompressor().execute(urlForVideo.getPath(), outPath);
+        new VideoCompressor().execute(uriForVideo.getPath(), outPath);
+        textTo.setText(outPath);
     }
 
-    class VideoCompressor extends AsyncTask<String, Void, Boolean> {
+    private class VideoCompressor extends AsyncTask<String, Void, Boolean> {
 
         @Override
         protected void onPreExecute() {
